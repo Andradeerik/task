@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  mongo:
+    container_name: mongo
+    image: mongo
+    restart: always
+    volumes:
+      - ./api/mongodata:/data/db
+    ports:
+      - 27017:27017
