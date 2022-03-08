@@ -4,6 +4,7 @@ const TaskSchema = new Schema({
     title: String,
     description: String,
     endingDate: String,
+    endingTime: String,
     duration: Number,
     recordedTime: Number,
     status: String,
