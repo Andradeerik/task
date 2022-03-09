@@ -2,10 +2,35 @@
   <q-page>
     <q-tab-panels v-model="tab" animated>
       <q-tab-panel name="pending">
-        <!-- {{ tasks }} -->
         <q-card-section horizontal class="text-h6">
           Tareas pendientes
           <q-space />
+          <q-input
+            style="max-width: 150px"
+            rounded
+            dense
+            standout="bg-primary text-white"
+            v-model="filtro"
+            input-class="text-right"
+            @blur="Onblur()"
+          >
+            <template v-slot:append>
+              <q-icon v-if="textFilter === ''" name="search" />
+              <q-icon
+                v-else
+                name="clear"
+                class="cursor-pointer"
+                @click="(textFilter = ''), (filtro = '')"
+              />
+            </template>
+          </q-input>
+          <q-btn
+            class="q-ml-xs"
+            size="12px"
+            round
+            color="primary"
+            icon="filter_list"
+          />
         </q-card-section>
         <template v-if="imagShowWithoutTasks">
           <q-page class="flex flex-center">
@@ -22,7 +47,7 @@
           </q-page>
         </template>
         <template
-          v-for="(task, i) in tasks"
+          v-for="(task, i) in tasksFilter"
           class="row justify-center content-start"
         >
           <q-card
@@ -60,20 +85,19 @@
                   icon="hourglass_top"
                 >
                   {{
-                    selectedTask._id === task._id
+                    idTaskOnTimer === task._id
                       ? selectedTaskDuration || "0"
-                        ? selectedTaskDuration
+                        ? `${hours}:${minutes}:${seconds}`
                         : task.duration
-                      : task.duration
+                      : secondsToString(task.duration * 60)
                   }}
-                  <pre><sub> min</sub></pre>
                 </q-chip>
                 <q-btn
                   style="position: absolute; top: 60px"
                   round
                   color="white"
                   :icon="
-                    selectedTask._id === task._id
+                    idTaskOnTimer === task._id
                       ? btnStartStop
                         ? 'pause'
                         : 'play_arrow'
@@ -102,20 +126,20 @@
             size="20px"
             icon="add"
             color="primary"
-            @click="dialAdd = true"
+            @click="dialAddTask = true"
           />
         </q-page-sticky>
       </q-tab-panel>
       <q-tab-panel name="completed">
         <div class="text-h6">Tareas completadas</div>
         <template
-          v-for="(item, i) in tasks"
+          v-for="(task, i) in tasks"
           class="row justify-center content-start"
         >
           <q-card
             :key="i"
-            class="bg-blue-grey-5 my-card text-white q-ma-xs customBorder"
-            v-if="item.status === 'completed'"
+            class="bg-blue-grey-5 my-card text-white q-my-md customBorder"
+            v-if="task.status === 'completed'"
           >
             <q-card-section horizontal>
               <q-card-section class="col-1">
@@ -123,18 +147,18 @@
                   style="position: absolute; top: 20px; left: 6px"
                   color="white"
                   keep-color
-                  v-model="item.status"
-                  :val="item.status"
+                  v-model="task.status"
+                  :val="task.status"
                   checked-icon="task_alt"
                 />
               </q-card-section>
-              <q-card-section @click="itemActive(item)" class="col-8">
+              <q-card-section class="col-8">
                 <div class="text-h6">
-                  <strike>{{ item.title }}</strike>
+                  <strike>{{ task.title }}</strike>
                 </div>
-                <div class="text-subtitle2">{{ item.description }}</div>
+                <div class="text-subtitle2">{{ task.description }}</div>
                 <q-chip outline color="white" text-color="white" icon="event">
-                  {{ item.endingDate }}- {{ time }}
+                  {{ task.endingDate }} - {{ task.endingTime }}
                 </q-chip>
               </q-card-section>
               <q-card-section class="col-3">
@@ -145,8 +169,7 @@
                   text-color="white"
                   icon="hourglass_top"
                 >
-                  {{ item.duration }}
-                  <pre><sub> min</sub></pre>
+                  {{ secondsToString(task.duration * 60) }}
                 </q-chip>
                 <q-chip
                   style="position: absolute; top: 55px; left: -10px"
@@ -155,19 +178,8 @@
                   text-color="white"
                   icon="hourglass_bottom"
                 >
-                  {{ item.recordedTime }}
-                  <pre><sub> min</sub></pre>
+                  {{ secondsToString(task.recordedTime * 60) }}
                 </q-chip>
-                <!-- <q-btn
-                  style="position: absolute; top: 60px"
-                  round
-                  color="white"
-                  icon="play_arrow"
-                  text-color="black"
-                  size="19px"
-                  dense
-                  push
-                /> -->
               </q-card-section>
             </q-card-section>
           </q-card>
@@ -397,8 +409,7 @@
                       ? newDurationMinutes
                       : selectedTask.duration
                   }}
-                  minutos
-                  <!-- {{ newDurationMinutes ? newDurationMinutes : maxnum }} -->
+                  minutos Totales
                 </q-chip>
               </q-item-section>
             </q-item>
@@ -432,6 +443,7 @@
           </q-list>
           <div class="q-pa-md flex flex-center">
             <q-circular-progress
+              v-if="idTaskOnTimer === selectedTask._id"
               :value="selectedTaskDuration"
               show-value
               :class="`text-${selectedTask.color} q-ma-md`"
@@ -442,8 +454,22 @@
               font-size="35px"
             >
               <div style="text-align: right" class="text-weight-bolder">
-                {{ selectedTaskDuration }} <br />
-                min
+                {{ hours }}:{{ minutes }}:{{ seconds }}
+              </div>
+            </q-circular-progress>
+            <q-circular-progress
+              v-else
+              :value="selectedTask.duration"
+              show-value
+              :class="`text-${selectedTask.color} q-ma-md`"
+              :color="selectedTask.color"
+              :max="selectedTask.duration"
+              size="200px"
+              :thickness="0.12"
+              font-size="35px"
+            >
+              <div style="text-align: right" class="text-weight-bolder">
+                {{ secondsToString(selectedTask.duration * 60) }}
               </div>
             </q-circular-progress>
           </div>
@@ -455,6 +481,7 @@
               @click="resetCounting(selectedTask)"
             />
             <q-btn
+              v-if="idTaskOnTimer === selectedTask._id"
               size="25px"
               round
               :color="selectedTask.color"
@@ -466,6 +493,14 @@
               "
             />
             <q-btn
+              v-else
+              size="25px"
+              round
+              :color="selectedTask.color"
+              :icon="'play_arrow'"
+              @click="startCounting(selectedTask)"
+            />
+            <q-btn
               round
               color="primary"
               icon="task_alt"
@@ -475,8 +510,9 @@
         </q-card-section>
       </q-card>
     </q-dialog>
-    <!-- ------------------------------------------------------  -->
-    <q-dialog v-model="dialAdd">
+
+    <!-- Ventana emergente para agregar los datos de una nueva tarea   -->
+    <q-dialog v-model="dialAddTask">
       <q-card style="border-radius: 25px; width: 100%; max-width: 370px">
         <q-card-section :class="`bg-${setColor}`">
           <div class="text-h6" :class="setColor ? 'text-white' : ''">
@@ -538,14 +574,12 @@
                           v-close-popup
                         />
                         <q-btn label="OK" color="primary" flat v-close-popup />
-                        <!-- @click="save" -->
                       </div>
                     </q-time>
                   </q-popup-proxy>
                   <template v-slot:prepend>
                     <q-icon name="schedule" />
                   </template>
-
                   <template v-slot:control>
                     <div class="self-center full-width no-outline" tabindex="0">
                       {{ time === "" ? "Estableser hora" : time }}
@@ -555,7 +589,6 @@
                 <div class="row items-center justify-end q-gutter-sm q-py-none">
                   <q-btn label="Cancel" color="primary" flat v-close-popup />
                   <q-btn label="OK" color="primary" flat v-close-popup />
-                  <!-- @click="save" -->
                 </div>
               </q-date>
             </q-popup-proxy>
@@ -593,7 +626,6 @@
     </q-dialog>
   </q-page>
 </template>
-
 <script>
 import { api } from "boot/axios";
 import { date } from "quasar";
@@ -601,6 +633,11 @@ export default {
   name: "PageIndex",
   data() {
     return {
+      textFilter: "",
+      idTaskOnTimer: "",
+      hours: 0,
+      minutes: 0,
+      seconds: 0,
       imagShowWithoutTasks: true,
       selectedTaskDuration: null,
       btnUpdate: false,
@@ -621,13 +658,11 @@ export default {
       hex: "#FF00FF",
       tab: "pending",
       dialogTask: false,
-      dialAdd: false,
+      dialAddTask: false,
       description: "",
-      shape: "",
       text: "",
       date: "",
       time: "",
-      dateH: "",
       selectedTask: {
         description: null,
         duration: null,
@@ -640,48 +675,59 @@ export default {
         __v: null,
         _id: null,
       },
+      tasksFilter: [],
       tasks: [],
     };
   },
   created() {
     this.loadData();
-    console.log(this.initimg(this.tasks));
   },
   beforeDestroy() {
-    console.log("hola");
     this.stopCounting();
   },
   computed: {
-    reversedMessage() {
-      console.log("coputed pro");
-      console.log(this.task);
-      return "hola";
+    filtro: {
+      get() {
+        return this.textFilter;
+      },
+      set(value) {
+        this.textFilter = value;
+        value = value.toLowerCase();
+        if (value === "") {
+          this.tasksFilter = this.tasks;
+        }
+        // } else {
+        this.tasksFilter = this.tasks.filter((task) => {
+          return task.title.toLowerCase().indexOf(value) !== -1;
+        });
+        // }
+      },
     },
   },
   methods: {
+    Onblur() {
+      // if (this.textFilter) {
+      //   this.tasksFilter = this.tasks;
+      // }
+    },
+    startTimer(duration) {
+      this.stopCounting();
+      this.btnStartStop = true;
+      this.timer = setInterval(() => {
+        this.hours = parseInt(duration / 3600, 10);
+        this.minutes = parseInt((duration / 60) % 60, 10);
+        this.seconds = parseInt(duration % 60, 10);
+        this.selectedTaskDuration = duration;
+        --duration;
+      }, 1000);
+    },
     secondsToString(seconds) {
-      let hour = Math.floor(seconds / 3600);
-      hour = hour < 10 ? "0" + hour : hour;
-      let minute = Math.floor((seconds / 60) % 60);
-      minute = minute < 10 ? "0" + minute : minute;
-      let second = seconds % 60;
-      second = second < 10 ? "0" + second : second;
+      let hour = parseInt(seconds / 3600, 10);
+      let minute = parseInt((seconds / 60) % 60, 10);
+      let second = parseInt(seconds % 60, 10);
       return hour + ":" + minute + ":" + second;
     },
-    initimg(tasks) {
-      console.log("hola dendnalkfalkj");
-      console.log(Object.entries(tasks));
-    },
-    filterTask() {
-      // this.tasks = this.tasks.sort();
-      // this.tasks = this.tasks.filter((task) => {
-      //   if (this.tab === "pending") {
-      //     return task.status === "pending";
-      //   } else if (this.tab === "completed") {
-      //     return task.status === "completed";
-      //   }
-      // });
-    },
+    filterTask() {},
     updateDurationMinutes(endingDate, endingTime) {
       let timeStamp = Date.now();
       let formattedString = date.formatDate(timeStamp, "YYYY/MM/DD-HH:mm:ss");
@@ -693,22 +739,26 @@ export default {
       );
     },
     resetCounting(task) {
-      this.selectedTaskDuration = Math.floor(task.duration * 1000);
+      this.stopCounting();
+      this.selectedTask = task;
+      let totalSeconds = task.duration * 60;
+      this.maxnum = totalSeconds;
+      this.selectedTaskDuration = totalSeconds;
+      this.hours = Math.floor(totalSeconds / 3600);
+      this.minutes = Math.floor((totalSeconds / 60) % 60);
+      this.seconds = Math.floor(totalSeconds % 60);
+      this.idTaskOnTimer = task._id;
+      this.startTimer(this.selectedTaskDuration);
     },
     completedTask(task) {
       this.stopCounting();
-      if (this.selectedTaskDuration < 0) {
-        task.recordedTime = task.duration - this.selectedTaskDuration;
-      } else {
-        task.recordedTime = this.selectedTaskDuration;
-      }
+      let totalSeconds = parseInt(task.duration * 60, 10);
+      task.recordedTime = totalSeconds - this.selectedTaskDuration;
       task.status = "completed";
       this.dialogTask = false;
       api
         .put("/updateTask", task)
         .then((response) => {
-          console.log(response);
-          this.loadData();
           this.selectedTask = {
             description: null,
             duration: null,
@@ -780,19 +830,11 @@ export default {
         });
     },
     startCounting(task) {
-      console.log("start counting");
-      console.log(task);
-      console.log(task.duration);
-      console.log(Math.floor(task.duration * 60));
-      console.log(this.secondsToString(Math.floor(task.duration * 60)));
-      console.log(this.selectedTask._id);
       if (this.selectedTask._id) {
         if (this.selectedTask._id === task._id) {
           this.btnStartStop = true;
-          this.timer = setInterval(() => {
-            this.selectedTaskDuration--;
-            console.log(this.selectedTaskDuration);
-          }, 1000);
+          this.startTimer(this.selectedTaskDuration);
+          this.idTaskOnTimer = task._id;
         } else {
           this.$q
             .dialog({
@@ -804,34 +846,23 @@ export default {
             })
             .onOk(() => {
               // console.log('>>>> OK')
-            })
-            .onOk(() => {
-              // console.log('>>>> second OK catcher')
-            })
-            .onCancel(() => {
-              // console.log('>>>> Cancel')
-            })
-            .onDismiss(() => {
-              // console.log('I am triggered on both OK and Cancel')
             });
         }
       } else {
-        console.log("asignando");
         this.selectedTask = task;
         this.selectedTaskDuration = Math.floor(task.duration * 60);
         this.btnStartStop = true;
-        this.timer = setInterval(() => {
-          this.selectedTaskDuration--;
-          console.log(this.selectedTaskDuration);
-        }, 1000);
+
+        // this.timer = setInterval(() => {
+
+        this.startTimer(this.selectedTaskDuration);
+        this.idTaskOnTimer = task._id;
+        // }, 1000);
       }
     },
     stopCounting() {
       clearInterval(this.timer);
       this.btnStartStop = false;
-      // if (item) {
-      //   item.startStop = true;
-      // }
     },
     addTask() {
       let timeStamp = Date.now();
@@ -867,7 +898,7 @@ export default {
           this.date = "";
           this.time = "";
           this.setColor = "";
-          this.dialAdd = false;
+          this.dialAddTask = false;
           this.btnDescription = false;
           this.$q.notify({
             type: "positive",
@@ -881,34 +912,19 @@ export default {
         });
     },
     taskActive(task) {
-      console.log("task active");
-      console.log(task);
-      console.log(this.selectedTask);
-      if (this.selectedTask._id) {
-        //   console.log("dentro");
-        //   if (this.selectedTask._id === task._id) {
-        //     console.log("esto es igul");
-        //   } else {
-        //     console.log("esto no es igual ");
-        //     this.selectedTask = task;
-        //     // this.selectedTask = task;
-        //     // this.maxnum = task.duration;
-        //     // this.selectedTaskDuration = task.duration;
-        //     // this.dialogTask = true;
-        //   }
-      } else {
-        // this.dialogTask = true;
-        this.maxnum = Math.floor(task.duration * 60);
-        this.selectedTask = task;
-        this.selectedTaskDuration = Math.floor(task.duration * 60);
-        // this.maxnum = task.duration;
-        // this.selectedTaskDuration = task.duration;
-      }
+      console.log("taskActive");
+      this.selectedTask = task;
+      let totalSeconds = task.duration * 60;
+      this.maxnum = totalSeconds;
+      this.selectedTaskDuration = totalSeconds;
+      this.hours = Math.floor(totalSeconds / 3600);
+      this.minutes = Math.floor((totalSeconds / 60) % 60);
+      this.seconds = Math.floor(totalSeconds % 60);
       this.dialogTask = true;
-      // this.selectedTask = task;
 
-      // this.selectedTask = task;
-      // this.maxnum = task.duration;
+      // if (this.selectedTask._id) {
+      // } else {
+      //   }
     },
     loadData() {
       this.btnUpdate = false;
@@ -924,21 +940,8 @@ export default {
           taskpendig.length === 0
             ? (this.imagShowWithoutTasks = true)
             : (this.imagShowWithoutTasks = false);
-          console.log(taskpendig.length);
           this.tasks = response.data.tasks;
-
-          // this.selectedTask = {
-          //   description: null,
-          //   duration: null,
-          //   endingDate: null,
-          //   endingTime: null,
-          //   recordedTime: null,
-          //   startStop: null,
-          //   status: null,
-          //   title: null,
-          //   __v: null,
-          //   _id: null,
-          // };
+          this.tasksFilter = this.tasks;
         })
         .catch(() => {
           this.$q.notify({
@@ -953,10 +956,7 @@ export default {
       api
         .get("/removeTask")
         .then((response) => {
-          console.log("respuesta");
-          console.log(response);
-          console.log(response.data.tasks);
-          // this.data = response.data;
+          this.loadData();
         })
         .catch(() => {
           this.$q.notify({
@@ -966,31 +966,6 @@ export default {
             icon: "report_problem",
           });
         });
-    },
-    ejemplopo() {
-      api
-        .post("/create", {
-          title: "Ejemplo",
-          description: "Esto es una desc",
-          endingDate: "1999",
-          duration: "198",
-          recordedTime: "8923847",
-          status: "false",
-        })
-        .then(function (response) {
-          console.log(response);
-        })
-        .catch(function (error) {
-          console.log(error);
-        });
-    },
-    add() {
-      this.tasks.unshift({
-        text: this.text,
-        done: false,
-      });
-      this.text = "";
-      this.dialAdd = false;
     },
   },
 };
