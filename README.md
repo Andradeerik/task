@@ -63,3 +63,5 @@ npx quasar dev
 
 - **Daniel Andrade** - _Trabajo Inicial_ - [Andradeerik](https://github.com/Andradeerik)
 - **Daniel Andrade** - _Documentación_ - [Andradeerik](https://github.com/Andradeerik)
+
+![](https://github.com/Andradeerik/task/blob/main/app/public/icons/image-removebg-preview.png?raw=true)
